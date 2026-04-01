@@ -4,7 +4,7 @@ struct LambdaAnalysis {
     todo_unions: Vec<((SlotMap, Id), (SlotMap, Id))>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct LambdaData {
     slots: BTreeSet<Slot>,
     leader: (SlotMap, Id),
@@ -31,15 +31,44 @@ impl Analysis<Lambda> for LambdaAnalysis {
 
     fn merge(&mut self, a: &mut LambdaData, b: LambdaData) -> DidMerge {
         self.todo_unions.push((a.leader.clone(), b.leader));
-        DidMerge(false, true) // TODD correct?
+        DidMerge(false, true) // TODO correct?
     }
 
-    fn modify(egraph: &mut EGraph<Lambda, Self>, eclass: Id) {
+    fn modify(eg: &mut EGraph<Lambda, Self>, eclass: Id) {
         // TODO add corresponding Rename nodes.
 
-        for (l, r) in std::mem::take(&mut egraph.analysis.todo_unions) {
-            todo!();
+        for (l, r) in std::mem::take(&mut eg.analysis.todo_unions) {
+            let (m1, l) = find(l, eg);
+            let (m2, r) = find(r, eg);
+            if l == r {
+                // m1*l = m2*l
+                // l = m1⁻¹*m2*l
+                let m = m1.inverse().compose(&m2);
+                if !eg[l].data.group.contains(&m) {
+                    let mut data = std::mem::take(&mut eg[l].data);
+                    data.group.insert(m);
+                    complete_group(&mut data.group);
+                    eg.set_analysis_data(l, data);
+                }
+            } else {
+                // m1*l = m2*r
+                // l -> m1⁻¹*m2*r
+                let m = m1.inverse().compose(&m2);
+                let mut data = std::mem::take(&mut eg[l].data);
+                data.leader = (m.clone(), r);
+                eg.set_analysis_data(l, data);
+
+                // TODO move over symmetries & redundancies.
+            }
         }
+    }
+}
+
+fn find((mut m, mut x): (SlotMap, Id), eg: &EGraph<Lambda, LambdaAnalysis>) -> (SlotMap, Id) {
+    loop {
+        let (m2, y) = &eg[x].data.leader;
+        if x == *y { return (m, x) }
+        (m, x) = (m.compose(m2), *y);
     }
 }
 

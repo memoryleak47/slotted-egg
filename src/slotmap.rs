@@ -3,7 +3,7 @@ pub use std::collections::BTreeSet;
 
 pub type Slot = usize;
 
-#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Ord, PartialOrd, Hash, Clone, Default)]
 pub struct SlotMap(Vec<(Slot, Slot)>);
 
 impl SlotMap {
