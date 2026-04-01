@@ -1,6 +1,8 @@
 use crate::*;
 
-struct LambdaAnalysis;
+struct LambdaAnalysis {
+    todo_unions: Vec<((SlotMap, Id), (SlotMap, Id))>,
+}
 
 #[derive(Debug, Clone)]
 struct LambdaData {
@@ -28,20 +30,15 @@ impl Analysis<Lambda> for LambdaAnalysis {
     }
 
     fn merge(&mut self, a: &mut LambdaData, b: LambdaData) -> DidMerge {
-        let (ma, la) = &a.leader;
-        let (mb, lb) = &b.leader;
-        if la == lb { // symmetries
-            let l = la;
-            // ma * l = mb * l
-            // l = ma⁻¹ * mb * l
+        self.todo_unions.push((a.leader.clone(), b.leader));
+        DidMerge(false, true) // TODD correct?
+    }
 
-            // TODO how to do that? I have no e-graph access.
-            // let mut data = [l].data.clone();
-            // data.group.push(ma.inverse().compose(mb));
-            // complete_group(&mut data.group);
-            // egraph.set_analysis_data(l, data);
-        } else {
-            todo!()
+    fn modify(egraph: &mut EGraph<Lambda, Self>, eclass: Id) {
+        // TODO add corresponding Rename nodes.
+
+        for (l, r) in std::mem::take(&mut egraph.analysis.todo_unions) {
+            todo!();
         }
     }
 }
@@ -52,9 +49,9 @@ fn complete_group(group: &mut BTreeSet<SlotMap>) {
 
         let mut extra = BTreeSet::new();
 
-        for x in group {
-            for y in group {
-                extra.push(x.compose(y));
+        for x in group.iter() {
+            for y in group.iter() {
+                extra.insert(x.compose(y));
             }
         }
         group.extend(extra);

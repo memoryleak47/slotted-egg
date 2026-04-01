@@ -10,6 +10,10 @@ impl SlotMap {
     pub fn identity(slots: &BTreeSet<Slot>) -> Self {
         SlotMap(slots.iter().map(|x| (*x, *x)).collect())
     }
+
+    pub fn compose(&self, other: &SlotMap) -> SlotMap {
+        todo!()
+    }
 }
 
 impl Index<Slot> for SlotMap {
