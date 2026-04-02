@@ -40,6 +40,15 @@ impl Analysis<Lambda> for LambdaAnalysis {
         for (l, r) in std::mem::take(&mut eg.analysis.todo_unions) {
             let (m1, l) = find(l, eg);
             let (m2, r) = find(r, eg);
+            let m1_inv = m1.inverse();
+            let m2_inv = m2.inverse();
+
+            let common_slots = &m1.value_set() & &m2.value_set();
+            let l_slots = common_slots.iter().filter_map(|a| m1_inv.get(*a)).collect();
+            let r_slots = common_slots.iter().filter_map(|a| m2_inv.get(*a)).collect();
+            mark_slot_redundant(eg, l, l_slots);
+            mark_slot_redundant(eg, r, r_slots);
+
             if l == r {
                 // m1*l = m2*l
                 // l = m1⁻¹*m2*l
@@ -54,11 +63,25 @@ impl Analysis<Lambda> for LambdaAnalysis {
                 // m1*l = m2*r
                 // l -> m1⁻¹*m2*r
                 let m = m1.inverse().compose(&m2);
+
+                // update l data, to point to r.
                 let mut data = std::mem::take(&mut eg[l].data);
                 data.leader = (m.clone(), r);
+                let l_group = data.group.clone();
                 eg.set_analysis_data(l, data);
 
-                // TODO move over symmetries & redundancies.
+                // update r data, the obtained symmetries.
+                let mut data = std::mem::take(&mut eg[r].data);
+
+                for g in l_group {
+                    // g*l = l  /\ l = m*r
+                    // g*m*r = m*r
+                    // -> m⁻¹*g*m*r = r
+                    let mm = m.inverse().compose(&g).compose(&m);
+                    data.group.insert(mm);
+                }
+                complete_group(&mut data.group);
+                eg.set_analysis_data(r, data);
             }
         }
     }
@@ -70,6 +93,19 @@ fn find((mut m, mut x): (SlotMap, Id), eg: &EGraph<Lambda, LambdaAnalysis>) -> (
         if x == *y { return (m, x) }
         (m, x) = (m.compose(m2), *y);
     }
+}
+
+fn mark_slot_redundant(eg: &mut EGraph<Lambda, LambdaAnalysis>, i: Id, new_set: BTreeSet<Slot>) {
+    let mut data = std::mem::take(&mut eg[i].data);
+
+    // TODO respect orbits.
+
+    assert!(new_set.is_subset(&data.slots));
+    data.slots = new_set;
+
+    // TODO shrink group.
+
+    eg.set_analysis_data(i, data);
 }
 
 fn complete_group(group: &mut BTreeSet<SlotMap>) {

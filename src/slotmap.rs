@@ -22,11 +22,24 @@ impl SlotMap {
     pub fn compose(&self, m2: &SlotMap) -> SlotMap {
         let m1 = self;
 
-        SlotMap::mk(m2.0.iter().map(|(k, v)| (*k, m1[*v])))
+        SlotMap::mk(m2.iter().map(|(k, v)| (k, m1[v])))
     }
 
     pub fn inverse(&self) -> SlotMap {
-        SlotMap::mk(self.0.iter().map(|(x, y)| (*y, *x)))
+        SlotMap::mk(self.iter().map(|(x, y)| (y, x)))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=(Slot, Slot)> {
+        self.0.iter().copied()
+    }
+
+    pub fn value_set(&self) -> BTreeSet<Slot> {
+        self.iter().map(|(_, y)| y).collect()
+    }
+
+    pub fn get(&self, k: Slot) -> Option<Slot> {
+        // TODO binary search.
+        self.iter().find(|(x, _)| *x == k).map(|(_, y)| y)
     }
 }
 
@@ -35,6 +48,6 @@ impl Index<Slot> for SlotMap {
 
     fn index(&self, i: Slot) -> &Self::Output {
         // TODO binary search.
-        &self.0.iter().find(|(x, y)| *x == i).unwrap().1
+        &self.0.iter().find(|(x, _)| *x == i).unwrap().1
     }
 }
