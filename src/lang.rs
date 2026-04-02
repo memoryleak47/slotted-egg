@@ -6,6 +6,7 @@ pub enum Lambda {
     App([Id; 2]),
     Var(Slot),
     Rename(SlotMap, Id),
+    Sym(Symbol),
 }
 
 impl Language for Lambda {
@@ -19,6 +20,7 @@ impl Language for Lambda {
             (Lambda::App(_), Lambda::App(_)) => true,
             (Lambda::Var(x), Lambda::Var(y)) => x == y,
             (Lambda::Rename(m1, _), Lambda::Rename(m2, _)) => m1 == m2,
+            (Lambda::Sym(s1), Lambda::Sym(s2)) => s1 == s2,
             _ => false,
         }
     }
@@ -29,6 +31,7 @@ impl Language for Lambda {
             Lambda::App(ab) => ab,
             Lambda::Var(_) => &[],
             Lambda::Rename(_, a) => std::slice::from_ref(a),
+            Lambda::Sym(_) => &[],
         }
     }
 
@@ -38,6 +41,7 @@ impl Language for Lambda {
             Lambda::App(ab) => ab,
             Lambda::Var(_) => &mut [],
             Lambda::Rename(_, a) => std::slice::from_mut(a),
+            Lambda::Sym(_) => &mut [],
         }
     }
 }

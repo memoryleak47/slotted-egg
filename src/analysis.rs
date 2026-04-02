@@ -1,11 +1,12 @@
 use crate::*;
 
-struct LambdaAnalysis {
+#[derive(Default)]
+pub struct LambdaAnalysis {
     todo_unions: Vec<((SlotMap, Id), (SlotMap, Id))>,
 }
 
 #[derive(Debug, Clone, Default)]
-struct LambdaData {
+pub struct LambdaData {
     slots: BTreeSet<Slot>,
     leader: (SlotMap, Id),
     group: BTreeSet<SlotMap>,
@@ -20,6 +21,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
             Lambda::App([a, b]) => &eg[*a].data.slots | &eg[*b].data.slots,
             Lambda::Var(s) => std::iter::once(*s).collect(),
             Lambda::Rename(m, a) => eg[*a].data.slots.iter().map(|x| m[*x]).collect(),
+            Lambda::Sym(_) => std::iter::empty().collect(),
         };
         let identity = SlotMap::identity(&slots);
         LambdaData {
