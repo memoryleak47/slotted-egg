@@ -91,6 +91,7 @@ fn complete_group(group: &mut BTreeSet<SlotMap>) {
 fn do_stuff(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
     do_shape_computation(eg);
     handle_unions(eg);
+    path_compress(eg);
 }
 
 // maps original slots to shape slots.
@@ -187,5 +188,13 @@ fn handle_unions(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
             complete_group(&mut data.group);
             eg.set_analysis_data(r, data);
         }
+    }
+}
+
+fn path_compress(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
+    for c in eg.classes().map(|x| x.id).collect::<Box<[_]>>() {
+        let (m, x) = find1(c, eg);
+        let cc = eg.add(Lambda::Rename(m, x));
+        eg.union(c, cc);
     }
 }
