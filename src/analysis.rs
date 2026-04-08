@@ -41,7 +41,7 @@ impl Analysis<Lambda> for LambdaAnalysis {
         DidMerge(false, true) // TODO correct?
     }
 
-    fn modify(eg: &mut EGraph<Lambda, Self>, eclass: Id) {
+    fn modify(eg: &mut EGraph<Lambda, Self>, _eclass: Id) {
         do_stuff(eg);
     }
 }
@@ -110,7 +110,16 @@ fn do_shape_computation(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
     for &c in &classes {
         for n in eg[c].nodes.clone() {
             match n {
-                Lambda::Lam(s, x) => {},
+                Lambda::Lam(s, x) => {
+                    let (m, x) = find1(x, eg);
+                    let d = shape_map(std::iter::once(s).chain(m.value_iter()));
+
+                    let real_x = eg.add(Lambda::Rename(d.compose(&m), x));
+                    let shape = eg.add(Lambda::Lam(0, real_x));
+                    let public_d = SlotMap::mk(d.iter().filter(|(_, x)| *x != 0));
+                    let equiv = eg.add(Lambda::Rename(public_d.inverse(), shape));
+                    eg.union(equiv, c);
+                },
                 Lambda::App([x, y]) => {
                     let (m1, x) = find1(x, eg);
                     let (m2, y) = find1(y, eg);
@@ -131,8 +140,8 @@ fn do_shape_computation(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
                     let new = eg.add(Lambda::Rename(m, v0));
                     eg.union(c, new);
                 },
-                Lambda::Rename(m, x) => {},
-                Lambda::Sym(s) => {
+                Lambda::Rename(_, _) => {},
+                Lambda::Sym(_) => {
                     let equiv = eg.add(Lambda::Rename(SlotMap::mk(std::iter::empty()), c));
                     eg.union(c, equiv);
                 },
