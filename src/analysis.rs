@@ -131,7 +131,10 @@ fn do_shape_computation(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
                     eg.union(c, new);
                 },
                 Lambda::Rename(m, x) => {},
-                Lambda::Sym(_) => {},
+                Lambda::Sym(s) => {
+                    let equiv = eg.add(Lambda::Rename(SlotMap::mk(std::iter::empty()), c));
+                    eg.union(c, equiv);
+                },
             }
         }
     }
