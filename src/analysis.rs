@@ -1,5 +1,7 @@
 use crate::*;
 
+use std::collections::HashMap;
+
 #[derive(Default)]
 pub struct LambdaAnalysis {
     todo_unions: Vec<((SlotMap, Id), (SlotMap, Id))>,
@@ -52,6 +54,10 @@ fn find((mut m, mut x): (SlotMap, Id), eg: &EGraph<Lambda, LambdaAnalysis>) -> (
     }
 }
 
+fn find1(x: Id, eg: &EGraph<Lambda, LambdaAnalysis>) -> (SlotMap, Id) {
+    find(eg[x].data.leader.clone(), eg)
+}
+
 fn mark_slot_redundant(eg: &mut EGraph<Lambda, LambdaAnalysis>, i: Id, new_set: BTreeSet<Slot>) {
     let mut data = std::mem::take(&mut eg[i].data);
 
@@ -87,21 +93,44 @@ fn do_stuff(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
     handle_unions(eg);
 }
 
+// maps original slots to shape slots.
+fn shape_map(it: impl Iterator<Item=Slot>) -> SlotMap {
+    let mut d = HashMap::new();
+    for v in it {
+        if !d.contains_key(&v) {
+            d.insert(v, d.len());
+        }
+    }
+    SlotMap::mk(d.into_iter())
+}
+
 fn do_shape_computation(eg: &mut EGraph<Lambda, LambdaAnalysis>) {
     let classes: Box<[Id]> = eg.classes().map(|x| x.id).collect();
-    for &x in &classes {
-        for n in eg[x].nodes.clone() {
+    for &c in &classes {
+        for n in eg[c].nodes.clone() {
             match n {
                 Lambda::Lam(s, x) => {},
-                Lambda::App([x, y]) => {},
+                Lambda::App([x, y]) => {
+                    let (m1, x) = find1(x, eg);
+                    let (m2, y) = find1(y, eg);
+                    let d = shape_map(m1.value_iter().chain(m2.value_iter()));
+                    // input: App(m1*x, m2*y)
+                    // m1 :: X -> F
+                    // m2 :: Y -> F
+                    // d :: F -> Sh
+                    let real_x = eg.add(Lambda::Rename(d.compose(&m1), x));
+                    let real_y = eg.add(Lambda::Rename(d.compose(&m2), y));
+                    let shape = eg.add(Lambda::App([real_x, real_y]));
+                    let equiv = eg.add(Lambda::Rename(d.inverse(), shape));
+                    eg.union(equiv, c);
+                },
                 Lambda::Var(s) => {
                     let v0 = eg.add(Lambda::Var(0));
                     let m = SlotMap::mk(std::iter::once((0, s)));
                     let new = eg.add(Lambda::Rename(m, v0));
-                    eg.union(x, new);
+                    eg.union(c, new);
                 },
-                Lambda::Rename(m, x) => {
-                },
+                Lambda::Rename(m, x) => {},
                 Lambda::Sym(_) => {},
             }
         }

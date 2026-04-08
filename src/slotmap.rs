@@ -33,6 +33,10 @@ impl SlotMap {
         self.0.iter().copied()
     }
 
+    pub fn value_iter(&self) -> impl Iterator<Item=Slot> {
+        self.iter().map(|(_, x)| x)
+    }
+
     pub fn value_set(&self) -> BTreeSet<Slot> {
         self.iter().map(|(_, y)| y).collect()
     }

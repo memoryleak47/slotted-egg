@@ -34,4 +34,5 @@ fn main() {
 
     // f(1) = g(1) -> f(2) = g(2)
     println!("{} = {} ?", eg.find(f2), eg.find(g2));
+    dbg!(eg.dump());
 }
